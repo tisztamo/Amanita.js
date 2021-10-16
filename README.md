@@ -1,2 +1,2 @@
-# amanita.js
+# Amanita.js
 Virtual DOM on shrooms

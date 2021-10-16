@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<head>
+  <title>Amanita.js tests</title>
+</head>
+<html>
+  <body>
+    <test-area srcs="./test">
+      <attr-tests testattr="ta42">
+        <a-wrap name="testname"></a-wrap>
+      </attr-tests>
+      <html-tests></html-tests>
+      <val-tests>
+        <a-const x="x42"></a-const>
+      </val-tests>
+    </test-area>
+
+    <test-report></test-report>
+    <script type="module" src="test/helpers/runtests.js"></script>
+  </body>
+</html>
