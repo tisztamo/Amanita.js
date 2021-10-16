@@ -64,17 +64,3 @@ A.isA = function(el) {
 export function parseRef(ref) {
   return ref.split('/')
 }
-
-export const BareBonesAmanita = A()
-A.define("a-wrap", BareBonesAmanita)
-
-class Attr2Val extends A() {
-  constructor() {
-    super()
-    for (const attrName of this.getAttributeNames()) {
-      this[attrName] = this.getAttribute(attrName)
-    }
-  }
-}
-
-A.define("a-const", Attr2Val)
