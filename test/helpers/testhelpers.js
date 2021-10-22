@@ -1,5 +1,11 @@
 import A from "../../src/Amanita.js"
 
+export function delay(time, value) {
+  return new Promise(function(resolve) { 
+      setTimeout(resolve.bind(null, value), time)
+  });
+}
+
 export class TestFailure extends Error {
   constructor(reason) {
     super(reason)
@@ -9,10 +15,10 @@ export class TestFailure extends Error {
 }
 
 export class TestSuite extends A() {
-  connectedCallback() {
+  async connectedCallback() {
     this.setup()
     try {
-      this.execute()
+      await this.execute()
       this.innerHTML = `<div style="color: green">${this.tagName} - OK</div>`
     } catch (e) {
       console.error(e)
@@ -21,15 +27,19 @@ export class TestSuite extends A() {
     this.teardown()
   }
 
-  execute() {
+  async execute() {
     const proto = Object.getPrototypeOf(this)
     const names = Object.getOwnPropertyNames(proto)
+    const promises = []
     for (const name of names) {
-      if (name.startsWith("test") &&
-        typeof this[name] === 'function') {
-        this[name](test)
+      if (name.startsWith("test") && typeof this[name] === 'function') {
+        const testResult = this[name](test)
+        if (testResult instanceof Promise) {
+          promises.push(testResult)
+        }
       }
     }
+    return await Promise.all(promises)
   }
 
   setup() {}
