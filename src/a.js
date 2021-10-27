@@ -1,6 +1,6 @@
-const a = Symbol('Amanita')
+export const a = Symbol('Amanita')
 
-export default function A(realDOM = HTMLElement) {
+export default function A(realDOM) {
   // TODO is caching needed?
   return class AmanitaComponent extends realDOM {
     constructor() {
@@ -49,6 +49,9 @@ export default function A(realDOM = HTMLElement) {
     val(localRef) {
       return this.val2(...parseRef(localRef))
     }
+
+    connectedCallback() {} // Allow super calls
+    disconnectedCallback() {}
   }
 }
 
@@ -58,6 +61,12 @@ A.define = function(tagName, componentClass) {
 
 A.isA = function(el) {
   return !!el[a]
+}
+
+A.lastuid = 0
+A.uid = function uid(prefix = "") {
+  A.lastuid += 1
+  return prefix ? `${prefix}_${A.lastuid}` : String(A.lastuid)
 }
 
 // Reference descriptor -> [selector, propertyName]

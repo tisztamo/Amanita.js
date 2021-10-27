@@ -1,4 +1,5 @@
-import A from "../../src/Amanita.js"
+import A from "../../src/a.js"
+import {BareBonesAmanita} from "../../src/stdlib.js"
 
 export function delay(time, value) {
   return new Promise(function(resolve) { 
@@ -14,9 +15,9 @@ export class TestFailure extends Error {
   }
 }
 
-export class TestSuite extends A() {
+export class TestSuite extends BareBonesAmanita {
   async connectedCallback() {
-    this.setup()
+    await this.setup()
     try {
       await this.execute()
       this.innerHTML = `<div style="color: green">${this.tagName} - OK</div>`
@@ -24,7 +25,7 @@ export class TestSuite extends A() {
       console.error(e)
       this.innerHTML = `<div style="color: red">${this.tagName} - </div>`
     }
-    this.teardown()
+    await this.teardown()
   }
 
   async execute() {
@@ -42,8 +43,8 @@ export class TestSuite extends A() {
     return await Promise.all(promises)
   }
 
-  setup() {}
-  teardown() {}
+  async setup() {}
+  async teardown() {}
 }
 
 let totalTestCount = 0
@@ -72,7 +73,7 @@ export function createEl(tagName, attributes) {
   return tag
 }
 
-export class TestArea extends A() {
+export class TestArea extends BareBonesAmanita {
   async unsecureLoadTests() {
     const folder = this.attr("srcs") || "./test/"
     const filter = this.attr("filter") || 'a[href$=".js"]'
@@ -82,7 +83,10 @@ export class TestArea extends A() {
     const selectedEls = container.querySelectorAll(filter)
     const scriptSrcs = []
     for (const el of selectedEls) {
-      scriptSrcs.push(el.getAttribute(attrName))
+      const scriptSrc = el.getAttribute(attrName)
+      if (!scriptSrc.endsWith("lib/Amanita.js")) {
+        scriptSrcs.push(scriptSrc)      
+      }
     }
     const scriptEls = scriptSrcs.map(src => createEl("script", {src, type: "module"}))
     for (const script of scriptEls) {

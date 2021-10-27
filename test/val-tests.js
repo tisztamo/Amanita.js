@@ -1,4 +1,4 @@
-import A from "../src/Amanita.js"
+import A from "../src/a.js"
 import {TestSuite} from "./helpers/testhelpers.js"
 
 class ValTests extends TestSuite {
