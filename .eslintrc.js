@@ -3,7 +3,6 @@ module.exports = {
     browser: true,
     es6: true
   },
-  extends: "standard",
   globals: {
     Atomics: "readonly",
     SharedArrayBuffer: "readonly"
@@ -13,10 +12,11 @@ module.exports = {
     sourceType: "module"
   },
   rules: {
-    semi:  ["error", "never"],
+    semi: ["error", "never"],
     quotes: "off",
     "object-curly-spacing": "off",
-    "space-before-function-paren": "off",
+    "space-before-function-paren": ["error", {named: "never"}],
+    "space-in-parens": ["error", "never"],
     "comma-dangle": ["error", "only-multiline"]
   }
 }

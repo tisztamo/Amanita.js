@@ -4,14 +4,36 @@
 </head>
 <html>
   <body>
-    <test-area srcs="./test">
+    <test-area srcs="./test" filter='a[href$=".js"]'>
       <attr-tests testattr="ta42">
         <a-wrap name="testname"></a-wrap>
       </attr-tests>
       <html-tests></html-tests>
       <val-tests>
-        <a-const x="x42"></a-const>
+        <a-var name="varx" x="x42"></a-var>
       </val-tests>
+      <pub-sub-tests>
+        <pub-subber id="xres" sub='/[forward="same"]/same'></pub-subber>
+        <pub-subber id="x2" sub="#xsrc/x" forward="doubled" transform="(x) => 2 * x">
+          <pub-subber id="xsrc" pubname="x" pubcount="5"></pub-subber>
+        </pub-subber>
+        <pub-subber sub="/#x2/doubled" forward="same">
+      </pub-sub-tests>
+      <worker-tests>
+        <a-scheduler>
+          <w-pub-subber id="wsrc" pubcount="5"></w-pub-subber>
+          <w-pub-subber id="wres" sub="/#wsrc/"></w-pub-subber>  
+        </a-scheduler>
+      </worker-tests>
+      <server-tests>
+        <a-scheduler server="true">
+          <w-pub-subber id="server_wsrc" pubcount="5"></w-pub-subber>
+        </a-scheduler>
+        <a-scheduler server="true"> <!-- TODO worker to server is not yet working -->
+          <w-pub-subber id="server_wres" sub="/#server_wsrc/"></w-pub-subber>  
+        </a-scheduler>
+      </server-tests>
+      <memory-leak-tests></memory-leak-tests>
     </test-area>
 
     <test-report></test-report>

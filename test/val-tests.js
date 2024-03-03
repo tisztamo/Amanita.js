@@ -3,7 +3,7 @@ import {TestSuite} from "./helpers/testhelpers.js"
 
 class ValTests extends TestSuite {
   testValGet(t) {
-    t(this.val("a-const/x") === "x42", "val of a-const")
+    t(this.val("varx/x") === "x42", "val of a-const")
   }
 
   testAttrSet(t) {

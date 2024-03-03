@@ -1,12 +1,6 @@
 import A from "../../src/a.js"
 import {BareBonesAmanita} from "../../src/stdlib.js"
 
-export function delay(time, value) {
-  return new Promise(function(resolve) { 
-      setTimeout(resolve.bind(null, value), time)
-  });
-}
-
 export class TestFailure extends Error {
   constructor(reason) {
     super(reason)
@@ -16,7 +10,8 @@ export class TestFailure extends Error {
 }
 
 export class TestSuite extends BareBonesAmanita {
-  async connectedCallback() {
+  async onConnect() {
+    super.onConnect()
     await this.setup()
     try {
       await this.execute()
@@ -73,6 +68,15 @@ export function createEl(tagName, attributes) {
   return tag
 }
 
+// structural equivalence chacked using JSON.stringify
+export function eq(val1, val2) {
+  const s1 = JSON.stringify(val1)
+  const s2 = JSON.stringify(val2)
+  if (s1 === s2) return true
+  console.error("Not equivalent", val1, val2)
+  return false
+}
+
 export class TestArea extends BareBonesAmanita {
   async unsecureLoadTests() {
     const folder = this.attr("srcs") || "./test/"
@@ -85,7 +89,7 @@ export class TestArea extends BareBonesAmanita {
     for (const el of selectedEls) {
       const scriptSrc = el.getAttribute(attrName)
       if (!scriptSrc.endsWith("lib/Amanita.js")) {
-        scriptSrcs.push(scriptSrc)      
+        scriptSrcs.push(scriptSrc)
       }
     }
     const scriptEls = scriptSrcs.map(src => createEl("script", {src, type: "module"}))
