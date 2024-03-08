@@ -36,6 +36,9 @@ export class Selector {
         console.assert(current, `Ref ${this} reached out of document before '${step}'', while querying from `, fromEl)
         if (step === "..") {
           current = current.parentElement
+          while (current && !current.on && !(current instanceof Document)) {
+            current = current.parentElement
+          }
         } else if (step.startsWith("..")) {
           current = current.closest(step.substr(2))
         } else if (isAlpha(step[0])) {
