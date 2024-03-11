@@ -1,6 +1,7 @@
 // Ref cheatsheet
 // /alma-source/my-alma/ids    // ids is topic name, alma-source and my-alma are name attributes!
 // ..tagname/topic             // But when searching upwards, we are looking for tag name instead
+// ../neighbor/                // .. goes up to the parent Amanita component
 // ..[name="alma-source"]/     // "value" is the default topic WARN: Do not forget to write out the last "/" in this case
 // .x/[a="1"]/@change          // Normal css selectors
 // /#filter/@change            // topics starting with @ are DOM events

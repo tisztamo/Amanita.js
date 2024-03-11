@@ -303,3 +303,24 @@ class AKeyboard extends BareBonesAmanita {
   }
 }
 A.define("a-keyboard", AKeyboard)
+
+// Wrap an input and pub changes. Styling may be problematic with this implementation. (untested)
+class AInput extends BareBonesAmanita {
+  input = null
+  onConnect() {
+    this.input = document.createElement("input");
+    Array.from(this.attributes).forEach(attr => {
+      this.input.setAttribute(attr.name, attr.value);
+    });
+    this.appendChild(this.input);
+  }
+
+  "@change" = e => {
+    this.pub(this.input.value)
+  }
+
+  "@input" = e => {
+    this.pub(this.input.value)
+  }
+}
+A.define("a-input", AInput)
