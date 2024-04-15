@@ -112,7 +112,7 @@ class ASwitch extends Projector {
 
   standinHtmlFor(child) {
     const caseAttr = child.getAttribute("case")
-    return `<template ${caseAttr ? `case="${caseAttr}"` : ""} _a-switch_idx="${child.getAttribute("_a-switch_idx")}"></template>`
+    return `<template ${caseAttr !== null ? `case="${caseAttr}"` : ""} _a-switch_idx="${child.getAttribute("_a-switch_idx")}"></template>`
   }
 
   async updateChild(child, isSelected) {
