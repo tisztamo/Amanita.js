@@ -3,7 +3,7 @@ import {TestSuite} from "./helpers/testhelpers.js"
 class AttrTests extends TestSuite {
   testAttrGet(t) {
     t(this.attr("testattr") === "ta42", "id attribute is ta42")
-    t(this.querySelector('[name="testname"').attr("name") === "testname")
+    t(this.querySelector('[name="testname"]').attr("name") === "testname")
   }
 
   testAttrSet(t) {
