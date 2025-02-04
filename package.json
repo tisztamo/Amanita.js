@@ -1,6 +1,6 @@
 {
   "name": "amanita",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A magical web components framework enabling effortless communication via a pub/sub system, like a mycelium network for your components.",
   "main": "src/a.js",
   "module": "src/a.js",
@@ -35,4 +35,3 @@
     "local-web-server": "^5.1.1"
   }
 }
-
