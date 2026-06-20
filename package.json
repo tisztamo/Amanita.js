@@ -25,7 +25,9 @@
   ],
   "exports": {
     ".": "./src/a.js",
-    "./stdlib": "./src/stdlib.js"
+    "./stdlib": "./src/stdlib.js",
+    "./workered": "./src/workered.js",
+    "./worker": "./src/worker.js"
   },
   "scripts": {
     "serve": "npx ws -p 3000"
