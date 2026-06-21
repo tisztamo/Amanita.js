@@ -35,10 +35,8 @@ When a child needs an ancestor to *do* something, it doesn't call the ancestor â
 dispatches a **bubbling DOM `CustomEvent`**, and the ancestor listens once:
 
 ```js
-// child states intent
-this.dispatchEvent(new CustomEvent("studio-command", {
-  bubbles: true, detail: { cmd: "speak", text }
-}))
+// child states intent â€” fire() dispatches a bubbling CustomEvent
+this.fire("studio-command", { cmd: "speak", text })
 
 // the hub listens once and routes
 onConnect() { this.addEventListener("studio-command", e => this.run(e.detail)) }

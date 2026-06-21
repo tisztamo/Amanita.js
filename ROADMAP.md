@@ -91,6 +91,11 @@ new primitive — it's:
   an event as ergonomic as `pub` — and it's safe **because the subscriber still writes
   `@name`**, so rule (2), visibility-at-the-read-site, holds. This is the salvageable
   core of the `emit` idea: sugar for the producer, not a new subscription semantic.
+  **✅ Implemented** in `src/a.js` as
+  `fire(name, detail = null, {bubbles = true, cancelable = false, composed = false})`
+  (returns the dispatched `CustomEvent`); covered by `testFire` in
+  `test/pubsub-tests.js`; documented in the API reference, pub/sub guide, gotchas, and
+  the two concept docs that teach "intent up."
 - **Handler ergonomics (consider):** an `@event` handler receives the `Event` and must
   reach into `e.detail`, whereas a topic handler gets `(value, old)` directly. Decide
   whether a small convenience (e.g. delivering `detail` directly for `fire`d events) is

@@ -97,6 +97,21 @@ export default function A(realDOM) {
       }
     }
 
+    // Dispatch a DOM CustomEvent from this element: the transient, "something happened"
+    // counterpart to pub()'s retained state. Subscribers listen with an "@name" event ref
+    // (e.g. "../@spoken"); the handler receives the Event and reads its payload from
+    // `e.detail`. Unlike pub(), nothing is stored or replayed, so a fired event never
+    // re-fires on a late subscribe or a reRender resub - no dedupe needed.
+    // `detail` becomes event.detail. `bubbles` defaults to true so intent flows up the
+    // tree (the "state down as topics, intent up as events" pattern).
+    // Returns the dispatched CustomEvent; for a cancelable event, inspect
+    // `.defaultPrevented` to see whether a listener vetoed it.
+    fire(name, detail = null, {bubbles = true, cancelable = false, composed = false} = {}) {
+      const event = new CustomEvent(name, {detail, bubbles, cancelable, composed})
+      this.dispatchEvent(event)
+      return event
+    }
+
     // Subscribe to a remote stream (ref)
     // - changes of the referenced property
     // - or the referenced DOM event

@@ -34,6 +34,34 @@ this.pub("temperature", 21)   // topic "temperature"
 this.pub(21)                  // topic "value"
 ```
 
+### `fire(name, detail = null, options = {})` → `CustomEvent`
+
+Dispatch a DOM `CustomEvent` from this element — the **transient** counterpart to
+`pub`'s retained state. Use it for discrete *events* ("spoken", "filed", "clicked-at")
+rather than standing *values*. Sugar for
+`this.dispatchEvent(new CustomEvent(name, { detail, …options }))`.
+
+- The payload goes in `detail`; subscribers listen with an **`@name` event ref** and
+  read `e.detail` in the handler.
+- **Nothing is retained or replayed.** Unlike a `pub` topic, a fired event is never
+  re-delivered to a late subscriber or on a `reRender` resub — so no dedupe key is
+  needed. This is the whole reason to prefer it for event-shaped signals.
+- `options.bubbles` **defaults to `true`** so intent flows *up* the tree (the "state
+  down as topics, intent up as events" pattern). Also accepts `cancelable` and
+  `composed` (both default `false`).
+- Returns the dispatched event; for a `cancelable` event, check `.defaultPrevented` to
+  see whether a listener vetoed it.
+
+```js
+this.fire("spoken", { text, at })                 // bubbles up; a parent catches it
+this.fire("close", null, { bubbles: false })      // stays on this element
+if (this.fire("save", row, { cancelable: true }).defaultPrevented) return  // a gate said no
+```
+
+> Across a [worker boundary](04-workers-protocol.md) an event's `detail` is **not**
+> forwarded (only `type`/`offsetX`/`offsetY` survive the trim). `fire` is for
+> same-context wiring; pass worker payloads as message arguments.
+
 ### `sub(ref, callback, trycount = 5)` → `Promise<subscription | null>`
 
 Subscribe `callback` to the topic (or DOM event) named by `ref`. Returns a

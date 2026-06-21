@@ -111,14 +111,12 @@ reason.
 
 Pub/sub is fire-and-forget and value-shaped. It does **not** model "do this
 immediately" or "await completion." For *intent flowing upward* — a child telling an
-ancestor to do something — both reference apps use plain **bubbling `CustomEvent`s**:
+ancestor to do something — both reference apps use plain **bubbling `CustomEvent`s**.
+`fire(name, detail)` is the producer-side sugar for exactly that:
 
 ```js
-// child dispatches intent
-this.dispatchEvent(new CustomEvent("studio-command", {
-  bubbles: true,
-  detail: { cmd: "speak", text }
-}))
+// child dispatches intent — fire() bubbles by default
+this.fire("studio-command", { cmd: "speak", text })
 
 // an ancestor listens once and routes
 onConnect() {
@@ -126,9 +124,26 @@ onConnect() {
 }
 ```
 
+`fire` is just `dispatchEvent(new CustomEvent(name, { bubbles: true, detail }))`. The
+important half is the **subscriber side**: a consumer binds with an `@event` ref
+(`"../@studio-command"`) or a plain `addEventListener`, and the `@` is the tell — it
+says *"something happened,"* not *"here is the current value."* That distinction is the
+reason to reach for `fire` over `pub` for events:
+
+| Kind | Producer | Subscriber sees | Behavior |
+|------|----------|-----------------|----------|
+| **State** | `this.pub("roster", v)` | `"../roster"` | retained, **replayed** on subscribe |
+| **Event** | `this.fire("spoken", d)` | `"../@spoken"` | transient, **never replayed** |
+
+Because a fired event is never retained, it sidesteps the dedupe dance above entirely:
+a late subscriber, or a re-subscriber after `reRender`, simply doesn't see events that
+already happened. Reach for `pub` when a *new* subscriber should learn the current
+state; reach for `fire` when only those *listening at the time* should react.
+
 This pairs naturally with pub/sub: **state flows down as topics, intent flows up as
 events.** It keeps the command surface declared (greppable) and lets a second
-listener — a logger, a confirm gate — interpose for free. See
+listener — a logger, a confirm gate — interpose for free. (For a gate, `fire(name,
+detail, { cancelable: true })` and check the returned event's `.defaultPrevented`.) See
 [Decoupling](../concepts/03-decoupling.md) for why this two-direction split is the
 backbone of larger Amanita systems.
 

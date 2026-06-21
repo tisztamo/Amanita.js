@@ -65,8 +65,8 @@ this.closest("app-root").querySelector("data-store").reload()   // ✗ reach-in
 and instead writing:
 
 ```js
-this.dispatchEvent(new CustomEvent("reload", { bubbles: true }))  // ✓ intent up
-// or subscribing to a topic the store publishes                  // ✓ state down
+this.fire("reload")                              // ✓ intent up (a bubbling DOM event)
+// or subscribing to a topic the store publishes // ✓ state down
 ```
 
 Why this is more than aesthetics: a `querySelector(...).method()` reach-in has three

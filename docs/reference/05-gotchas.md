@@ -48,7 +48,11 @@ this.pub("spoken", { text, at: Date.now() })          // stamp it
 onSpoken = s => { if (!s || s.at === this._last) return; this._last = s.at; … }  // dedupe
 ```
 
-Or, if the interaction is really a command, use a bubbling DOM event instead of a topic.
+Better, if the thing is genuinely an *event*: publish it as a **DOM event** instead of
+a topic. `this.fire("spoken", { text })` dispatches a (bubbling) `CustomEvent` that is
+never retained, so it can't replay — the consumer binds `"../@spoken"` and drops the
+dedupe key entirely. Use `pub` for standing state, `fire` for "something happened." See
+[Pub/sub](../guide/04-pub-sub.md#commands-and-now-use-dom-events-not-topics).
 
 ## Re-render re-subscription doesn't cover event refs
 

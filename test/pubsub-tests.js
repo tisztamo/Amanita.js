@@ -73,6 +73,46 @@ class PubSubTests extends TestSuite {
     t(curVal == 4, "No value is delivered after off()")
   }
 
+  async testFire(t) {
+    // container > emitter, both Amanita components in the live DOM under `this`
+    const container = document.createElement("a-wrap")
+    const emitter = document.createElement("a-wrap")
+    container.appendChild(emitter)
+    this.appendChild(container)
+    await delay(1)
+
+    // Consumer listens on the ancestor: intent flows up via the bubbling event
+    const heard = []
+    await container.sub("@spoken", e => heard.push(e.detail))
+
+    const ev = emitter.fire("spoken", {text: "hello"})
+    await delay(1)
+    t(ev instanceof CustomEvent && ev.type === "spoken", "fire() returns the dispatched CustomEvent")
+    t(ev.bubbles === true, "fire() bubbles by default (intent up)")
+    t(heard.length === 1 && heard[0].text === "hello", "ancestor receives the fired event's detail via bubbling")
+
+    // The defining difference from pub(): events are transient, never retained/replayed.
+    const late = []
+    await container.sub("@spoken", e => late.push(e.detail))
+    await delay(1)
+    t(late.length === 0, "no replay: a subscriber added after the fire is NOT re-fired (unlike a retained pub topic)")
+
+    emitter.fire("spoken", {text: "again"})
+    await delay(1)
+    t(heard.length === 2 && late.length === 1, "a fresh fire reaches every current subscriber")
+
+    // cancelable events can be vetoed; defaultPrevented surfaces it
+    container.addEventListener("save", e => e.preventDefault())
+    const saveEv = emitter.fire("save", {id: 7}, {cancelable: true})
+    t(saveEv.defaultPrevented === true, "cancelable fired event reflects a listener's preventDefault()")
+
+    // detail defaults to null; bubbles can be turned off to keep the event local
+    const localEv = emitter.fire("local", undefined, {bubbles: false})
+    t(localEv.detail === null && localEv.bubbles === false, "detail defaults to null; bubbles:false keeps it local")
+
+    container.remove()
+  }
+
   async testPubSubChain(t) {
     await delay(80)
     t(eq(this.val("#xres/got"), [10, 8, 6, 4, 2]), "Chain of pub-subs")
