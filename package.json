@@ -30,10 +30,12 @@
     "./worker": "./src/worker.js"
   },
   "scripts": {
-    "serve": "npx ws -p 3000"
+    "serve": "npx ws -p 3000",
+    "test:jsdom": "node test/run-jsdom.mjs"
   },
   "devDependencies": {
     "eslint": "^8",
+    "jsdom": "^29.1.1",
     "local-web-server": "^5.1.1"
   }
 }
