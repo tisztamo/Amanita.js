@@ -140,10 +140,15 @@ export default function A(realDOM) {
       if (!subDescriptor) return this
       const subDesc = await subDescriptor
       console.assert(!subDesc.attention || subDesc.attention.srcEl === this, "unsub called on different element than sub", subDesc)
-      const subIdx = this._a.subscriptions.findIndex( // TODO unclear why callbacks are not always equal during _unsubAll. Ignoring cb for now.
-        sub => (sub.attention && subDesc.attention && sub.attention.propName === subDesc.attention.propName ||
-          sub.event && sub.event === subDesc.event) &&
-           sub.target === subDesc.target
+      // Identify the exact subscription. The attention object is shared with the target's
+      // subscriber list (and reused on the resub path), so identity is stable. Matching by
+      // (propName, target) alone mis-pairs when a component subscribes to the same
+      // (target, topic) more than once -> a double-off and a leaked subscription.
+      const subIdx = this._a.subscriptions.findIndex(sub =>
+        sub.target === subDesc.target && (
+          (sub.attention && subDesc.attention && sub.attention === subDesc.attention) ||
+          (sub.event && subDesc.event && sub.event === subDesc.event && sub.cb === subDesc.cb)
+        )
       )
       if (subIdx === -1) {
         console.error("Subscription not found for unsub", subDesc)

@@ -35,6 +35,10 @@ const FIXTURE = `
 
 <html-tests></html-tests>
 
+<ref-tests></ref-tests>
+
+<api-tests></api-tests>
+
 <val-tests>
   <a-var name="varx" x="x42"></a-var>
 </val-tests>
@@ -55,11 +59,13 @@ const MODULES = [
   "./attr-tests.js",
   "./val-tests.js",
   "./html-tests.js",
+  "./ref-tests.js",
+  "./api-tests.js",
   "./pubsub-tests.js",
 ]
 
 // Suite tag -> shown in the report. Order matches the fixture.
-const SUITE_TAGS = ["attr-tests", "html-tests", "val-tests", "pub-sub-tests"]
+const SUITE_TAGS = ["attr-tests", "html-tests", "ref-tests", "api-tests", "val-tests", "pub-sub-tests"]
 
 const SKIPPED = [
   ["worker-tests", "needs real Web Workers (jsdom provides none)"],

@@ -234,6 +234,14 @@ returned by `sub`/`on`. Let `sub` accept an `AbortSignal` (`this.sub(ref, cb, { 
 auto-unsubscribe at disconnect; this is for the cases that manage a subscription
 mid-life.
 
+**Related correctness fix (done).** `unsub` matched a subscription by `(propName,
+target)` while ignoring the callback (the `// TODO unclear why callbacks are not always
+equal` note). When a component subscribed to the same `(target, topic)` more than once
+— e.g. an explicit `sub` plus an auto-sub field pointing at the same place — disconnect
+mis-paired the bookkeeping, double-offed one attention and **leaked** the other, so the
+target kept notifying the dead component. Now matched by attention identity (and
+`(event, cb)` for event subs). Regression test: `testUnsubDuplicate`.
+
 ### 6. Disambiguate constant vs ref attributes
 
 `chart.js`'s `// TODO constant refs or naming convention to distinguish constant and
@@ -248,6 +256,11 @@ value as a ref." Pick one and document it.
 that's fine; over a base like `Tonic` whose own field can land at index 0, the *first*
 declared field is skipped. Filter by the `_a` **key** explicitly instead of by
 position — removes a latent, hard-to-debug footgun.
+
+**✅ Fixed.** `_autoSub` now iterates *all* own keys (the `_a` field is never ref-shaped,
+so `_isAutoSubbed` filters it out — no positional skip needed). Regression test:
+`testAutoSubLeadingField` in `test/pubsub-tests.js`, which wires a ref-shaped auto-sub
+field declared on a base class.
 
 ---
 

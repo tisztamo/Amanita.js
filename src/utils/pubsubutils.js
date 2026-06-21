@@ -49,9 +49,11 @@ export function _isAutoSubbed(propName) {
 }
 
 export function _autoSub(obj) {
-  const props = Object.keys(obj)
-  for (let i = 1; i < props.length; i++) {
-    const propName = props[i]
+  // Subscribe every own field whose name is a ref (@event or contains "/"). We scan all
+  // keys rather than skipping index 0: the internal "_a" field is never ref-shaped, so
+  // _isAutoSubbed filters it out anyway, and skipping by position would drop a real
+  // auto-sub field that happens to sit first (e.g. one declared on a base class).
+  for (const propName of Object.keys(obj)) {
     if (_isAutoSubbed(propName)) {
       obj.sub(propName, obj[propName])
     }

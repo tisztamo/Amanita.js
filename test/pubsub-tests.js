@@ -49,6 +49,15 @@ class PubSubber extends A(HTMLElement) {
 }
 A.define("pub-subber", PubSubber)
 
+// A ref-shaped auto-sub field declared on a BASE class. Field-init order puts it at
+// index 0 (before the mixin's internal `_a`), which the old `_autoSub` skipped.
+export const autoSubLeadingFired = []
+class LeadingFieldBase extends HTMLElement {
+  "@boom" = () => autoSubLeadingFired.push("boom")
+}
+class LeadingFieldComp extends A(LeadingFieldBase) {}
+A.define("leading-field-comp", LeadingFieldComp)
+
 class PubSubTests extends TestSuite {
   async testOnOffPub(t) {
     const feedName = "feed"
@@ -71,6 +80,93 @@ class PubSubTests extends TestSuite {
     src.pub(5)
     await delay(1)
     t(curVal == 4, "No value is delivered after off()")
+  }
+
+  async testAutoSubLeadingField(t) {
+    // Regression: _autoSub used to loop from index 1 (assuming `_a` is first), which
+    // silently dropped a ref-shaped auto-sub field sitting at index 0 -- e.g. one
+    // declared on a base class the component extends.
+    const el = document.createElement("leading-field-comp")
+    this.appendChild(el)
+    await delay(1)
+    autoSubLeadingFired.length = 0
+    el.dispatchEvent(new CustomEvent("boom"))
+    await delay(1)
+    t(autoSubLeadingFired.length === 1, "an auto-sub field at index 0 (declared on a base class) is wired")
+    el.remove()
+  }
+
+  async testOnOffMultiple(t) {
+    const el = document.createElement("a-wrap")
+    const a = []
+    const b = []
+    const subA = el.on("v", x => a.push(x))
+    el.on("v", x => b.push(x))
+    el.pub("v", 1)
+    await delay(1)
+    t(a.length === 1 && b.length === 1, "both listeners on the same topic fire")
+    el.off(subA)
+    el.pub("v", 2)
+    await delay(1)
+    t(a.length === 1, "an offed listener stops receiving")
+    t(b.length === 2, "a sibling listener keeps firing after the other is offed")
+  }
+
+  async testUnsubDuplicate(t) {
+    // Regression: subscribing twice to the SAME (target, topic) used to leak all but one
+    // subscription on disconnect -- unsub matched by (propName, target) and ignored the
+    // callback, so it double-offed one attention and never offed the other. The target
+    // then kept notifying the dead component. (This is exactly the explicit-sub +
+    // auto-sub-field overlap that the main fixture's last pub-subber has.)
+    const src = document.createElement("a-wrap")
+    const consumer = document.createElement("a-wrap")
+    src.setAttribute("name", "leaksrc")
+    src.appendChild(consumer)
+    this.appendChild(src)
+    await delay(1)
+
+    const hitsA = []
+    const hitsB = []
+    await consumer.sub("..[name='leaksrc']/topic", v => hitsA.push(v))
+    await consumer.sub("..[name='leaksrc']/topic", v => hitsB.push(v))
+    t(src._a.subscribers.get("topic").length === 2, "both subscriptions are registered on the target")
+
+    src.pub("topic", 1)
+    await delay(1)
+    t(hitsA.length === 1 && hitsB.length === 1, "both callbacks receive a publish while connected")
+
+    consumer.remove() // -> disconnectedCallback -> _unsubAll
+    await delay(5)
+    const remaining = src._a.subscribers.get("topic")
+    t((remaining ? remaining.length : 0) === 0, "disconnect removes BOTH subscriptions (no leak)")
+
+    src.pub("topic", 2)
+    await delay(1)
+    t(hitsA.length === 1 && hitsB.length === 1, "the removed consumer's callbacks no longer fire (no ghost)")
+
+    src.remove()
+  }
+
+  async testUnsubEvent(t) {
+    const target = document.createElement("a-wrap")
+    const consumer = document.createElement("a-wrap")
+    target.setAttribute("name", "evtsrc")
+    target.appendChild(consumer)
+    this.appendChild(target)
+    await delay(1)
+
+    const heard = []
+    const sub = await consumer.sub("..[name='evtsrc']/@ping", e => heard.push(e.detail))
+    target.fire("ping", "a")
+    await delay(1)
+    t(heard.length === 1 && heard[0] === "a", "an @event sub receives a fired event")
+
+    await consumer.unsub(sub)
+    target.fire("ping", "b")
+    await delay(1)
+    t(heard.length === 1, "after unsub the @event listener is removed")
+
+    target.remove()
   }
 
   async testFire(t) {
