@@ -25,7 +25,7 @@ rules:
 
 | # | Proposal | Type | Effort | Risk | Priority |
 |---|----------|------|--------|------|----------|
-| 1 | Codify topic-vs-event; close the event-path ergonomics gap | docs + small API | S–M | low | **high** |
+| ~~1~~ | ~~Codify topic-vs-event; close the event-path ergonomics gap~~ | ~~docs + small API~~ | ~~S–M~~ | ~~low~~ | ~~**high**~~ |
 | 2 | Make ref-resolution failure loud; tunable auto-sub retries | API + DX | S | low | **high** |
 | 3 | Warn on the silent auto-sub *method* footgun | DX (dev-only) | XS | low | **high** |
 | 4 | `resub` should cover event refs | bugfix | S | med | medium |
@@ -42,139 +42,33 @@ rules:
 
 ## Tier 1 — highest leverage, fits the grain
 
-### 1. Codify topic-vs-event; close the event-path ergonomics gap
+### ~~1. Codify topic-vs-event; close the event-path ergonomics gap~~
 
-**Problem.** Retained behavior-values are Amanita's best feature *and* its biggest
-footgun. Replay-on-subscribe is exactly right for **state** (roster, route,
-temperature), but people also reach for `pub` for **discrete events** (`spoken`,
-`filed`, "clicked at"), and then replay re-fires the event on every late subscribe
-and every `reRender` resub. The evidence is everywhere:
+**✅ Done — [`c5a1f4d`](https://github.com/sovereign/Amanita.js/commit/c5a1f4d).**
 
-- Meditator dedupes on a timestamp or object identity in essentially *every*
-  `m-memory` handler, with comments tying the dedupe directly to retained-value
-  replay.
-- Stereotic hit a real "retrigger on reRender" bug and worked around it with
-  `this.trigger = null // TODO ... triggering should be handled specially`.
+The core insight was that adding a non-retained `emit()` alongside `pub` is redundant
+(Amanita already has transient `CustomEvent` + `@event` refs) and harmful (hides the
+retention decision from the subscriber). Instead, the distinction stays visible at the
+subscription site: `"topic"` (retained, replayed) vs `"@event"` (transient, never
+replayed).
 
-That is a whole class of boilerplate and bugs caused by using a *state* primitive for
-*events*.
+What shipped:
 
-**Rejected first idea — a new `emit()` (non-retained `pub`).** The obvious move is to
-add `emit(name, value)` that notifies subscribers without storing/replaying. It does
-*not* survive scrutiny, for two reasons:
+- **`fire(name, detail, {bubbles, cancelable, composed})`** in `src/a.js` — producer-side
+  sugar for `dispatchEvent(new CustomEvent(...))`, with `bubbles: true` by default
+  ("intent up"). Returns the `CustomEvent` so `cancelable` gates can check
+  `.defaultPrevented`. Covered by `testFire` in `test/pubsub-tests.js`.
+- **Docs codified across 5 files:** full API entry (`reference/01-api.md`), state/event
+  comparison table (`guide/04-pub-sub.md`), dedupe gotcha now points at `fire()`
+  (`reference/05-gotchas.md`), and both concept docs (`concepts/01-mental-model.md`,
+  `concepts/03-decoupling.md`) teach `fire()` instead of raw `dispatchEvent`.
+- **Decision logged:** handler asymmetry (event handlers receive `Event`, topic handlers
+  receive `(value, old)`) is intentional — events should look different from state.
+- **Worker-boundary `detail` forwarding** deferred to #10.
 
-- **It's redundant.** Amanita already has a transient mechanism: a `CustomEvent` + an
-  `@event` ref. DOM events aren't retained (no replay → no reRender-retrigger, no
-  dedupe), already work in auto-sub (`"@spoken" = …`), and already cross the worker
-  boundary (see the payload caveat below).
-- **It hides the decision where the reader needs it.** With `emit`/`pub`, the
-  *subscription site is identical* — `"/voice/spoken" = s => …` — yet retention is
-  precisely what the subscriber must know (does it replay on mount? must it dedupe?).
-  `emit` would push that decision onto the producer, invisible to the subscriber.
-
-**The actual fix.** Keep two mechanisms, and keep the distinction **visible at the
-subscription site**, which the existing syntax already does:
-
-| Kind | Producer | Subscriber sees | Behavior |
-|------|----------|-----------------|----------|
-| **State** | `this.pub("spoken", v)` | `"/voice/spoken"` | retained, replayed on subscribe |
-| **Event** | `dispatchEvent(new CustomEvent("spoken", {detail}))` | `"/voice/@spoken"` | transient, never replayed |
-
-The `@` is the tell: `spoken` vs `@spoken` is the difference between "current value"
-and "something happened," right where the reader is looking. So the work is *not* a
-new primitive — it's:
-
-- **Guidance (docs/lint):** event-shaped things are `@` DOM events, not `pub`bed
-  topics. (Partly written already in the docs' pub/sub page.)
-- **Producer-side sugar (optional, safe):** a `this.fire(name, detail, {bubbles})`
-  helper that is *just* `dispatchEvent(new CustomEvent(...))`. This makes *producing*
-  an event as ergonomic as `pub` — and it's safe **because the subscriber still writes
-  `@name`**, so rule (2), visibility-at-the-read-site, holds. This is the salvageable
-  core of the `emit` idea: sugar for the producer, not a new subscription semantic.
-  **✅ Implemented** in `src/a.js` as
-  `fire(name, detail = null, {bubbles = true, cancelable = false, composed = false})`
-  (returns the dispatched `CustomEvent`); covered by `testFire` in
-  `test/pubsub-tests.js`; documented in the API reference, pub/sub guide, gotchas, and
-  the two concept docs that teach "intent up."
-- **Handler ergonomics (consider):** an `@event` handler receives the `Event` and must
-  reach into `e.detail`, whereas a topic handler gets `(value, old)` directly. Decide
-  whether a small convenience (e.g. delivering `detail` directly for `fire`d events) is
-  worth it, or whether the asymmetry is *good* (events should look different). Lean
-  toward leaving it honest unless it bites.
-
-**Open question — cross-worker transient payloads.** `@event` subscriptions do cross
-the worker boundary, but the event is reduced to the `extractEventData` whitelist
-(`type`, `offsetX`, `offsetY`) — a `CustomEvent`'s `detail` is dropped. If transient
-*payloads* need to cross into/out of a worker, the right fix is to **forward
-`detail`** (and let a component declare which fields), *not* to add `emit`. See #10.
-
-**Payoff.** Deletes dedupe code from real apps, removes the reRender-retrigger class of
-bugs, and clarifies a pattern the docs already call "state down as topics, intent up as
-events" — without adding a redundant channel.
-
-#### Appendix — what this would touch in Meditator
-
-A concrete survey of the reference app (mind components in `src/mindComponents/` +
-Studio in `src/studio/ui/`), to size the change. Two separable kinds of site:
-
-**(a) `fire()` sugar — 12 dispatch sites, mechanical.** Every
-`dispatchEvent(new CustomEvent(name, { bubbles: true, detail }))` becomes
-`this.fire(name, detail)`. These are already DOM events done *right* (the
-`interrupt`/`interrupt-request` spine and `studio-command` are the "transient intent
-up" pattern) — pure boilerplate removal, no semantic change.
-
-| Where | Site | Event |
-|-------|------|-------|
-| mind | `mObserver.js:66` | `interrupt-request` *(shared `raise()` — covers loop-guard, associate, speech, image, act)* |
-| mind | `mInterrupts.js:114` | `interrupt-request` (region promotion) |
-| mind | `mInterrupts.js:124` | `interrupt` (urgent re-dispatch) |
-| mind | `mSense.js:111` | `interrupt-request` *(shared `feel()` — daylight/weather/feed)* |
-| mind | `mTimeout.js:75` | `interrupt-request` |
-| mind | `mMind.js:182` | `interrupt-request` (origin seed) |
-| mind | `mMemory.js:470` | `interrupt-request` (waking) |
-| mind | `mAct.js:350` | `interrupt-request` (consequence) |
-| mind | `mConsole.js:42` | `interrupt-request` |
-| mind | `mTerminal.js:243` | `interrupt-request` |
-| mind | `mWs.js:248` | `interrupt-request` |
-| studio | `helpers.js:37` | `studio-command` *(shared `command()` — used by every pane)* |
-
-11 mind + 1 studio. Three already sit behind helpers (`raise`, `feel`, `command`), so
-`fire()` lands in ~9 distinct expressions but cleans all 12.
-
-**(b) `pub` → DOM-event conversion — the substantive one.** Event-shaped topics
-published with `pub`, where retained replay is wrong and a consumer already had to
-**dedupe or ignore the replay**. Converting them deletes that workaround.
-
-*Proven (a replay-guard exists today — unambiguously event-shaped): 5 topics → 5 guard
-deletions.*
-
-| Topic | Producer | Consumer guard removed |
-|-------|----------|------------------------|
-| `spoken` | `mSpeech.js:259` | `mMemory._lastSpokenAt` (`mMemory.js:243`) |
-| `filed` | `mKb.js:129` | `mMemory._lastFiled` identity dedupe (`:254`) |
-| `acted` | `mAct.js:319` | `mMemory._lastActed` identity dedupe (`:266`) |
-| `attended` | `mMind.js:368` | `mMemory._lastAttended` identity dedupe (`:280`) |
-| `boundary` | `mStream.js:168` | `mMind.onceBoundary` replay-ignore (`mMind.js:55`) |
-
-The comment at `mMemory.js:239-241` names the cause outright: the dedupe exists
-*because* Amanita "replays a topic's last value to a late/re-subscriber."
-
-*Candidate (semantically transient, no guard yet — judgment calls): ~9 mind + ~7
-studio.* mind: `impulse` (`mSpeech:205`, `mImage:104`), `intent` (`mAct:213`),
-`decision` (`mInterrupts:131`), `generated`/`error` (`mImage:142/145`),
-`speech`/`speech-boundary` (`mSpeech:243/253`), `chunk` (`mStream:176`, a stream), and
-arguably `prompt` (`mMind:348`, a "think now" command). studio: `event` (`:179`),
-`streamFragment` (`:176/177`), `log` (`:140`), `lifecycle` (`:136`), `youSaid`
-(`:220`), `error` (`:141`, already throttled via `studioToast._lastErrAt`), `focusReset`
-(`:237`). These work today mostly because minds never `reRender` (replay only bites on
-first subscribe) and the Studio tolerates one stale value.
-
-**Sizing.** `fire()` = 12 sites, pure cleanup. `pub`→event proven = 5 topics / 5
-guard-deletions, low risk and concrete payoff. Candidates = ~16 more, worth it for
-clarity but discretionary. The high-value, low-risk slice is **the proven 5**.
-
-> Line numbers are a snapshot and will drift; treat them as a starting map, not a
-> contract.
+Downstream migration: ~12 `dispatchEvent` → `fire()` sites in Meditator (mechanical
+boilerplate removal) and ~5 proven `pub`→event conversions that delete replay guards.
+These are discretionary app-level cleanups, not blocked on the framework change.
 
 ### 2. Make ref-resolution failure loud; make auto-sub retries tunable
 
