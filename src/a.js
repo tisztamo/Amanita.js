@@ -12,7 +12,7 @@ export default function A(realDOM) {
 
     // Default number of retry attempts for ref resolution. Override as a static on any
     // subclass to make auto-sub fields (and bare `sub` calls) more patient.
-    static subTries = 5
+    static subTries = 12
 
     // Get the value of attribute "attrName" of this
     attr(attrName) {
@@ -135,7 +135,7 @@ export default function A(realDOM) {
     async sub(ref, cb, optsOrTrycount) {
       console.assert(typeof cb === "function", "Not a valid sub callback", cb)
 
-      let trycount = this.constructor.subTries ?? 5
+      let trycount = this.constructor.subTries ?? 12
       let onUnresolved = null
       if (typeof optsOrTrycount === "number") {
         trycount = optsOrTrycount

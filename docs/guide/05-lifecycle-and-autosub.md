@@ -97,32 +97,6 @@ If a handler "never fires," this is almost always why. Always write auto-sub han
 as `name = arrow`. (Internally Amanita uses `Object.keys(this)`, which returns only
 own enumerable properties — class fields qualify, methods don't.)
 
-### Auto-sub uses the class-level `subTries`
-
-Auto-subscribed fields are subscribed with the class-level `subTries` default (**5** on
-the base mixin). Override `static subTries` on your subclass to raise the retry count
-for **all** auto-sub fields at once:
-
-```js
-class PatientComp extends A(HTMLElement) {
-  static subTries = 12
-
-  // This auto-sub now gets 12 retries, not 5:
-  "/conn/roster" = r => this.render(r)
-}
-```
-
-If you need a *per-call* override, subscribe explicitly in `onConnect`:
-
-```js
-onConnect() {
-  this.sub("/conn/roster", r => this.render(r), { trycount: 20 })
-}
-```
-
-Use auto-sub for fixed, structural, same-tree wiring; use explicit `sub` when timing
-is uncertain or the ref comes from an attribute.
-
 ## Re-rendering and re-subscription
 
 If you mix Amanita over a templating framework that replaces a component's children

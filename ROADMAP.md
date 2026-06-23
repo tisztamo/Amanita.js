@@ -84,16 +84,16 @@ These are discretionary app-level cleanups, not blocked on the framework change.
 - **`onUnresolved` callback** — `sub` accepts an options bag
   `{ trycount: N, onUnresolved: err => { … } }` where the hook fires *before* rejection,
   giving callers a chance to log, recover, or swallow the error.
-- **`static subTries = 5`** — class-level default consumed by `sub()` so subclasses can
-  override it once (e.g. `static subTries = 12`) and all auto-sub fields inherit the
-  patience without rewriting them as explicit `sub(…, 12)` calls.
+- **`static subTries = 12`** — class-level default consumed by `sub()` so subclasses can
+  override it once (e.g. `static subTries = 20`) and all auto-sub fields inherit the
+  patience without rewriting them as explicit `sub(…, 20)` calls.
 - **Backward compatible** — passing a bare number as the third arg (`sub(ref, cb, 12)`) still works.
 - **Regression tests:** `testSubRejectsOnUnresolvedRef`, `testSubOnUnresolvedCallback`,
   `testStaticSubTries`, `testLegacyNumericTrycount` in `test/pubsub-tests.js`.
 
 Downstream impact: eliminates the hand-rolled readiness loops (`_whenAlive`, `_whenReady`)
-and uniform `sub(…, 12)` scatter in Meditator and Studio — replace with one
-`static subTries = 12` on the base class and `try/await sub(…)` for explicit handling.
+and uniform `sub(…, 12)` scatter in Meditator and Studio — remove explicit `trycount` overrides
+since 12 is now the default, and use `try/await sub(…)` for explicit handling.
 
 ### 3. Warn on the silent auto-sub *method* footgun
 

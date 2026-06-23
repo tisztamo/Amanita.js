@@ -80,8 +80,8 @@ Notes:
 ## Resolution timing
 
 Refs are resolved **lazily, when used** — when you `sub`, `el`, or `val`. `sub` retries
-resolution with backoff (`trycount`), so a ref can name an element that doesn't exist
-yet and bind once it appears. `el`/`val` resolve once, immediately (no retry).
+resolution with backoff, so a ref can name an element that doesn't exist yet and bind
+once it appears. `el`/`val` resolve once, immediately (no retry).
 
 ## Worked examples
 

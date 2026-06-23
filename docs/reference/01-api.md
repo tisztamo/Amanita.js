@@ -70,8 +70,8 @@ resolved, the promise **rejects** with a `RefResolutionError` — making the fai
 catchable.
 
 - **Async & self-healing.** If the ref doesn't resolve yet — element absent, or not
-  upgraded into an Amanita component — it retries with exponential backoff. The number
-  of retries defaults to `this.constructor.subTries` (5 on the base mixin).
+  upgraded into an Amanita component — it retries with exponential backoff. The retry
+  count defaults to `this.constructor.subTries` (12 on the base mixin).
 - **Third argument** can be a **number** (legacy: `trycount`) or an **options bag**:
   ```js
   { trycount: 12, onUnresolved: err => { /* log, recover, or swallow */ } }
@@ -84,11 +84,8 @@ catchable.
 - For an **event** ref (`@…`), `callback(event)` fires on each DOM event.
 
 ```js
-// Simple — uses the class-level subTries default (5):
+// Simple — uses the class-level subTries default:
 const sub = await this.sub("/store/items", items => this.render(items))
-
-// More retries via options bag:
-const sub = await this.sub("/store/items", items => this.render(items), { trycount: 12 })
 
 // Catch resolution failure:
 try {
@@ -100,16 +97,15 @@ try {
 
 #### `static subTries`
 
-Class-level default retry count for ref resolution. Override on any subclass to make
-auto-sub fields (and bare `sub` calls without explicit `trycount`) more patient:
+Class-level default retry count for ref resolution (12 on the base mixin). Override
+on any subclass to make auto-sub fields (and bare `sub` calls without explicit
+`trycount`) more patient:
 
 ```js
 class PatientComp extends A(HTMLElement) {
-  static subTries = 12  // all sub() and auto-sub calls get 12 retries
+  static subTries = 20
 }
 ```
-
-This eliminates the need for `sub(ref, cb, 12)` scattered throughout your app.
 
 ### `unsub(subscription)` → `Promise<this>`
 
@@ -217,9 +213,7 @@ callback.
 ```
 
 ⚠️ Must be **arrow-function fields, not methods** — `"@click" = e => {}` is wired,
-`"@click"(e) {}` is not. Auto-sub uses the class-level `subTries` default (5 on the
-base mixin); override `static subTries` on your subclass to raise it for all auto-sub
-fields at once. See [Gotchas](05-gotchas.md).
+`"@click"(e) {}` is not.
 
 ---
 
@@ -257,7 +251,7 @@ the [decoupling note](../concepts/03-decoupling.md#a-note-on-hub-advanced--exper
 | `A.define(tag, Class)` | Register a component (wraps `customElements.define`). |
 | `A.isA(el)` | `true` if `el` is an Amanita component (has the internal `_a`). |
 | `A.uid(prefix = "")` | A process-unique id, optionally prefixed (`A.uid("wrk")` → `"wrk_7"`). |
-| `Class.subTries` | Default retry count for ref resolution (5 on the base mixin). Override on subclasses. |
+| `Class.subTries` | Default retry count for ref resolution (12 on the base mixin). Override on subclasses. |
 
 ### `whtml(htmlString)` *(unstable)*
 

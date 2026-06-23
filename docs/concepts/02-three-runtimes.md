@@ -90,9 +90,9 @@ is a pub/sub cycle clocked by timers.
 
 - **Import order is load-bearing** — jsdom globals first, Amanita second.
 - **Upgrade order races exist.** A component that `await`s before wiring can run
-  `onConnect` before a sibling exists; the cures are `sub(…, 12)` (more retries) and
-  readiness polling. Define components in document order with no `await` between
-  defines so forward refs resolve cleanly.
+  `onConnect` before a sibling exists; the cure is readiness polling. Define
+  components in document order with no `await` between defines so forward refs
+  resolve cleanly.
 - **Logging an element can explode.** jsdom nodes transitively reference the whole
   window; a stray `console.log(el)` (or a framework warning that includes an element)
   can dump thousands of lines. Meditator installs a `util.inspect.custom` hook to

@@ -63,7 +63,7 @@ export class PropRef {
     this.propName = propName || "value"
   }
 
-  async bind(sourceEl, cb, trycount=5) {
+  async bind(sourceEl, cb, trycount=12) {
     const target = await resolveRef(this, sourceEl, trycount)
     const attention = target.on(this.propName, cb)
     attention.srcEl = sourceEl
@@ -102,7 +102,7 @@ export class EventRef {
     }
   }
 
-  async bind(sourceEl, cb, trycount=5) {
+  async bind(sourceEl, cb, trycount=12) {
     const target = await resolveRef(this, sourceEl, trycount)
     target.addEventListener(this.event, cb, {passive: this.passive})
     return {

@@ -21,28 +21,6 @@ auto-sub handlers as `name = arrow`.
 > Corollary: the same applies to a `Workered`/`AmanitaWorker` subclass's auto-sub
 > fields.
 
-## Auto-sub retry count is controlled by `static subTries`
-
-Auto-subscribed fields use the class-level `subTries` default (**5** on the base
-mixin). Override `static subTries` on your subclass to raise the retry count for
-**all** auto-sub fields at once:
-
-```js
-class PatientComp extends A(HTMLElement) {
-  static subTries = 12
-  "/conn/roster" = r => this.render(r)  // gets 12 retries, not 5
-}
-```
-
-For per-call control, subscribe explicitly in `onConnect`:
-
-```js
-onConnect() { this.sub("/conn/roster", r => this.render(r), { trycount: 20 }) }
-```
-
-Use auto-sub for fixed, same-tree, structural wiring; use explicit `sub` when
-timing is uncertain or the ref comes from an attribute.
-
 ## Retained replay re-fires "event" topics
 
 Subscribing replays the topic's current value (behavior-value semantics). For a topic
@@ -75,24 +53,13 @@ Bind such events on a stable element, or re-bind manually after render.
 A component can run `onConnect` before a sibling it refers to has been upgraded into an
 Amanita component — especially if it `await`s before wiring. Mitigations:
 
-- pass a larger `trycount` to `sub` (the retry/backoff waits out the race);
 - define components in document order with no `await` between `customElements.define`
   calls (server-side);
 - for structural listeners that *can't* tolerate the race, bind with a plain
   `addEventListener` on a `closest(...)` ancestor instead of a `../@event` ref.
 
 A ref that never resolves **rejects** the `sub()` promise with a `RefResolutionError`
-— making the failure catchable with `try/catch` or `.catch()`. You can also provide an
-`onUnresolved` hook in the options bag to log or recover before the rejection:
-
-```js
-await this.sub("/maybe-absent/topic", cb, {
-  trycount: 12,
-  onUnresolved: err => console.warn("Could not wire:", err.ref)
-})
-```
-
-Budget your `trycount` (via `static subTries` or per-call) accordingly.
+— making the failure catchable with `try/catch` or `.catch()`.
 
 ## `sub` is async; you can't read the value synchronously after subscribing
 

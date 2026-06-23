@@ -306,7 +306,7 @@ class PubSubTests extends TestSuite {
     const defaultEl = document.createElement("a-wrap")
     this.appendChild(defaultEl)
     await delay(1)
-    t(defaultEl.constructor.subTries === 5, "default subTries is 5")
+    t(defaultEl.constructor.subTries === 12, "default subTries is 12")
 
     el.remove()
     defaultEl.remove()
