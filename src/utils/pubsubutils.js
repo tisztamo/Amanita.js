@@ -22,6 +22,7 @@ export function _on(me, propName, cb) {
 export function _off(me, {propName, cb}) {
   if (!me._a.subscribers) return false
   const subs = me._a.subscribers.get(propName)
+  if (!subs) return false   // nothing registered under this name (e.g. an @event attention already cleared on teardown)
   const idx = subs.findIndex(sub => sub.cb == cb)
   if (idx === -1) {
     console.error("Cannot find listener callback for offing", cb)
