@@ -21,17 +21,26 @@ auto-sub handlers as `name = arrow`.
 > Corollary: the same applies to a `Workered`/`AmanitaWorker` subclass's auto-sub
 > fields.
 
-## Auto-sub can't raise the retry count
+## Auto-sub retry count is controlled by `static subTries`
 
-Auto-subscribed fields always use the default `trycount` of **5**. When wiring across an
-uncertain upgrade order (a consumer that may connect before its producer), subscribe
-**explicitly** so you can pass more retries:
+Auto-subscribed fields use the class-level `subTries` default (**5** on the base
+mixin). Override `static subTries` on your subclass to raise the retry count for
+**all** auto-sub fields at once:
 
 ```js
-onConnect() { this.sub("/conn/roster", r => this.render(r), 12) }
+class PatientComp extends A(HTMLElement) {
+  static subTries = 12
+  "/conn/roster" = r => this.render(r)  // gets 12 retries, not 5
+}
 ```
 
-Use auto-sub for fixed, same-tree, structural wiring; use explicit `sub(…, n)` when
+For per-call control, subscribe explicitly in `onConnect`:
+
+```js
+onConnect() { this.sub("/conn/roster", r => this.render(r), { trycount: 20 }) }
+```
+
+Use auto-sub for fixed, same-tree, structural wiring; use explicit `sub` when
 timing is uncertain or the ref comes from an attribute.
 
 ## Retained replay re-fires "event" topics
@@ -72,9 +81,18 @@ Amanita component — especially if it `await`s before wiring. Mitigations:
 - for structural listeners that *can't* tolerate the race, bind with a plain
   `addEventListener` on a `closest(...)` ancestor instead of a `../@event` ref.
 
-A ref that never resolves fails **quietly** — it logs an error after exhausting retries
-and the handler simply never fires. There's no thrown exception. Budget your `trycount`
-accordingly.
+A ref that never resolves **rejects** the `sub()` promise with a `RefResolutionError`
+— making the failure catchable with `try/catch` or `.catch()`. You can also provide an
+`onUnresolved` hook in the options bag to log or recover before the rejection:
+
+```js
+await this.sub("/maybe-absent/topic", cb, {
+  trycount: 12,
+  onUnresolved: err => console.warn("Could not wire:", err.ref)
+})
+```
+
+Budget your `trycount` (via `static subTries` or per-call) accordingly.
 
 ## `sub` is async; you can't read the value synchronously after subscribing
 
@@ -134,11 +152,12 @@ Publishing `undefined` does nothing. If you mean "cleared," publish `null`.
 
 ## Minor rough edges flagged in the source
 
-- **`_autoSub` skips the first own field** (it loops from index 1 to skip the internal
-  `_a`). Over plain `HTMLElement` this is harmless; over a templating base whose own
-  field lands at index 0, the *first* declared field is skipped by auto-sub — so don't
-  make your very first instance field a ref-named auto-sub handler when mixing over such
-  a base. (Declaring a plain field first sidesteps it.)
+- ~~**`_autoSub` skips the first own field**~~ — ~~it loops from index 1 to skip the internal~~
+  ~~`_a`). ~~Over plain `HTMLElement` this is harmless; over a templating base whose own~~
+  ~~field lands at index 0, the *first* declared field is skipped by auto-sub — so don't~~
+  ~~make your very first instance field a ref-named auto-sub handler when mixing over such~~
+  ~~a base. (Declaring a plain field first sidesteps it.)~~ **Fixed.** `_autoSub` now iterates
+  all own keys; the `_a` field is never ref-shaped, so `_isAutoSubbed` filters it out.
 - **No syntactic distinction between "constant" and "ref" attributes.** Whether an
   attribute value is a literal or a ref is a convention you impose.
 - **`off()`/`unsub()` are a little awkward** — you must hold the descriptor returned by

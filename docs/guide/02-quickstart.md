@@ -105,7 +105,10 @@ You'll see both throughout real code:
 ```js
 // (a) Explicit — subscribe in onConnect. Best when the ref comes from an attribute
 //     (reusable components) or you want to control retries:
-onConnect() { this.sub(this.attr("src"), this.show, 12) }
+onConnect() { this.sub(this.attr("src"), this.show) }
+
+// With explicit retry count:
+onConnect() { this.sub(this.attr("src"), this.show, { trycount: 12 }) }
 
 // (b) Auto-sub — a class FIELD named after a ref binds automatically on connect.
 //     Best when the ref is fixed and structural:

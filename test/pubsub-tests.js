@@ -241,6 +241,93 @@ class PubSubTests extends TestSuite {
     await delay(10)
     t(eq(resEl.got, [10, 8, 6, 4, 2, 12, 16, 18]), "Auto-unsub on detach")
   }
+
+  async testSubRejectsOnUnresolvedRef(t) {
+    // When a ref cannot be resolved, sub() should reject instead of returning null.
+    const el = document.createElement("a-wrap")
+    this.appendChild(el)
+    await delay(1)
+
+    let rejected = false
+    try {
+      await el.sub("/.nonexistent-element-xyz/value", () => {}, 1)
+    } catch (e) {
+      rejected = true
+      t(e.name === "RefResolutionError", "throws RefResolutionError")
+      t(String(e).includes("nonexistent-element-xyz"), "error message contains the ref string")
+    }
+    t(rejected, "sub() rejects when ref cannot be resolved")
+
+    el.remove()
+  }
+
+  async testSubOnUnresolvedCallback(t) {
+    // The onUnresolved hook is invoked before the rejection, giving callers a chance
+    // to log or swallow the error.
+    const el = document.createElement("a-wrap")
+    this.appendChild(el)
+    await delay(1)
+
+    const hookCalled = []
+    let rejected = false
+    try {
+      await el.sub("/.nope-42/value", () => {}, {
+        trycount: 1,
+        onUnresolved: (err) => hookCalled.push(err)
+      })
+    } catch {
+      rejected = true
+    }
+
+    t(rejected, "still rejects after invoking onUnresolved")
+    t(hookCalled.length === 1, "onUnresolved callback was invoked")
+    t(hookCalled[0].name === "RefResolutionError", "onUnresolved receives the RefResolutionError")
+
+    el.remove()
+  }
+
+  async testStaticSubTries(t) {
+    // A subclass can override static subTries to make auto-sub fields more patient
+    // without rewriting them as explicit sub() calls.
+    class PatientComp extends A(HTMLElement) {
+      static subTries = 20
+    }
+    A.define("patient-comp", PatientComp)
+
+    const el = document.createElement("patient-comp")
+    this.appendChild(el)
+    await delay(1)
+
+    // Verify the static is inherited
+    t(el.constructor.subTries === 20, "subclass overrides static subTries")
+    t(PatientComp.subTries === 20, "static subTries is accessible on the class")
+
+    // The default for bare BBA is still 5
+    const defaultEl = document.createElement("a-wrap")
+    this.appendChild(defaultEl)
+    await delay(1)
+    t(defaultEl.constructor.subTries === 5, "default subTries is 5")
+
+    el.remove()
+    defaultEl.remove()
+  }
+
+  async testLegacyNumericTrycount(t) {
+    // Passing a bare number as the third arg still works (backward compat).
+    const el = document.createElement("a-wrap")
+    this.appendChild(el)
+    await delay(1)
+
+    let rejected = false
+    try {
+      await el.sub("/.ghost-99/value", () => {}, 1)
+    } catch {
+      rejected = true
+    }
+    t(rejected, "legacy numeric trycount=1 still works and rejects on failure")
+
+    el.remove()
+  }
 }
 
 A.define("pub-sub-tests", PubSubTests)

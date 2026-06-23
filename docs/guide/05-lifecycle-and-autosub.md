@@ -97,20 +97,29 @@ If a handler "never fires," this is almost always why. Always write auto-sub han
 as `name = arrow`. (Internally Amanita uses `Object.keys(this)`, which returns only
 own enumerable properties — class fields qualify, methods don't.)
 
-### Auto-sub uses the default retry count
+### Auto-sub uses the class-level `subTries`
 
-Auto-subscribed fields are subscribed with the **default `trycount` of 5** and there
-is no way to raise it. If you're wiring across an uncertain upgrade order (e.g. a pane
-that may connect before its hub), subscribe **explicitly** in `onConnect` so you can
-pass a larger count:
+Auto-subscribed fields are subscribed with the class-level `subTries` default (**5** on
+the base mixin). Override `static subTries` on your subclass to raise the retry count
+for **all** auto-sub fields at once:
 
 ```js
-onConnect() {
-  this.sub("/conn/roster", r => this.render(r), 12)  // 12 retries, not 5
+class PatientComp extends A(HTMLElement) {
+  static subTries = 12
+
+  // This auto-sub now gets 12 retries, not 5:
+  "/conn/roster" = r => this.render(r)
 }
 ```
 
-The Meditator Studio uses explicit `sub(…, 12)` everywhere for exactly this reason.
+If you need a *per-call* override, subscribe explicitly in `onConnect`:
+
+```js
+onConnect() {
+  this.sub("/conn/roster", r => this.render(r), { trycount: 20 })
+}
+```
+
 Use auto-sub for fixed, structural, same-tree wiring; use explicit `sub` when timing
 is uncertain or the ref comes from an attribute.
 

@@ -62,23 +62,54 @@ if (this.fire("save", row, { cancelable: true }).defaultPrevented) return  // a 
 > forwarded (only `type`/`offsetX`/`offsetY` survive the trim). `fire` is for
 > same-context wiring; pass worker payloads as message arguments.
 
-### `sub(ref, callback, trycount = 5)` → `Promise<subscription | null>`
+### `sub(ref, callback, options?)` → `Promise<subscription>`
 
 Subscribe `callback` to the topic (or DOM event) named by `ref`. Returns a
-*subscription descriptor* (awaitable) for later `unsub`, or `null` if the ref never
-resolved.
+*subscription descriptor* (awaitable) for later `unsub`. If the ref cannot be
+resolved, the promise **rejects** with a `RefResolutionError` — making the failure
+catchable.
 
 - **Async & self-healing.** If the ref doesn't resolve yet — element absent, or not
-  upgraded into an Amanita component — it retries with exponential backoff up to
-  `trycount` times. Raise `trycount` (commonly to `12`) when timing is uncertain.
+  upgraded into an Amanita component — it retries with exponential backoff. The number
+  of retries defaults to `this.constructor.subTries` (5 on the base mixin).
+- **Third argument** can be a **number** (legacy: `trycount`) or an **options bag**:
+  ```js
+  { trycount: 12, onUnresolved: err => { /* log, recover, or swallow */ } }
+  ```
+  `onUnresolved` is invoked *before* the rejection, giving you a hook to handle the
+  error without a try/catch.
 - For a **topic** ref, `callback(newValue, oldValue)` fires on each publish, and — if a
   value already exists — once immediately with the current value (behavior-value
   replay).
 - For an **event** ref (`@…`), `callback(event)` fires on each DOM event.
 
 ```js
-const sub = await this.sub("/store/items", items => this.render(items), 12)
+// Simple — uses the class-level subTries default (5):
+const sub = await this.sub("/store/items", items => this.render(items))
+
+// More retries via options bag:
+const sub = await this.sub("/store/items", items => this.render(items), { trycount: 12 })
+
+// Catch resolution failure:
+try {
+  await this.sub("/maybe-absent/topic", cb)
+} catch (e) {
+  console.warn("Ref never resolved:", e.ref)
+}
 ```
+
+#### `static subTries`
+
+Class-level default retry count for ref resolution. Override on any subclass to make
+auto-sub fields (and bare `sub` calls without explicit `trycount`) more patient:
+
+```js
+class PatientComp extends A(HTMLElement) {
+  static subTries = 12  // all sub() and auto-sub calls get 12 retries
+}
+```
+
+This eliminates the need for `sub(ref, cb, 12)` scattered throughout your app.
 
 ### `unsub(subscription)` → `Promise<this>`
 
@@ -186,8 +217,9 @@ callback.
 ```
 
 ⚠️ Must be **arrow-function fields, not methods** — `"@click" = e => {}` is wired,
-`"@click"(e) {}` is not. Auto-sub always uses the default `trycount` (5); use explicit
-`sub(…, n)` when you need more retries. See [Gotchas](05-gotchas.md).
+`"@click"(e) {}` is not. Auto-sub uses the class-level `subTries` default (5 on the
+base mixin); override `static subTries` on your subclass to raise it for all auto-sub
+fields at once. See [Gotchas](05-gotchas.md).
 
 ---
 
@@ -225,6 +257,7 @@ the [decoupling note](../concepts/03-decoupling.md#a-note-on-hub-advanced--exper
 | `A.define(tag, Class)` | Register a component (wraps `customElements.define`). |
 | `A.isA(el)` | `true` if `el` is an Amanita component (has the internal `_a`). |
 | `A.uid(prefix = "")` | A process-unique id, optionally prefixed (`A.uid("wrk")` → `"wrk_7"`). |
+| `Class.subTries` | Default retry count for ref resolution (5 on the base mixin). Override on subclasses. |
 
 ### `whtml(htmlString)` *(unstable)*
 

@@ -21,7 +21,7 @@ consumer subscribes through a ref:
 this.pub("roster", minds)            // "here is my current roster"
 
 // consumer (anywhere below/around it)
-this.sub("/conn/roster", r => this.render(r), 12)
+this.sub("/conn/roster", r => this.render(r))
 ```
 
 Because topics are [retained](../guide/04-pub-sub.md#topics-are-retained-behavior-values),
@@ -82,7 +82,7 @@ from an attribute with a structural default and an `"off"` switch:
 ```js
 // explicit override  ||  auto-discovered default  ||  disabled
 const src = this.attr("spokenSrc") || discover() || null
-if (src && src !== "off") this.sub(src, this.onSpoken, 12)
+if (src && src !== "off") this.sub(src, this.onSpoken)
 ```
 
 Now the wire lives **in the markup** (`spokenSrc="/voice/spoken"`), defaults sensibly,

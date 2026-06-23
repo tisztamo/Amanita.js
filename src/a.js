@@ -1,5 +1,5 @@
 import {_on, _off, _pub, _isAutoSubbed, _autoSub, _unsubAll} from "./utils/pubsubutils.js"
-import {parseRef, PropRef, resolveRef} from "./ref.js"
+import {parseRef, PropRef, resolveRef, RefResolutionError} from "./ref.js"
 
 export default function A(realDOM) {
   // TODO is caching needed?
@@ -9,6 +9,10 @@ export default function A(realDOM) {
       subscriptions: [], // [SubscriptionDescriptors...]
       hub: null
     }
+
+    // Default number of retry attempts for ref resolution. Override as a static on any
+    // subclass to make auto-sub fields (and bare `sub` calls) more patient.
+    static subTries = 5
 
     // Get the value of attribute "attrName" of this
     attr(attrName) {
@@ -122,13 +126,32 @@ export default function A(realDOM) {
     //    Will look for the first .datasource found starting from this
     // WARN: async! returns null or a subscription desriptor to be passed to unsub
     // Will try 'trycount' times with exponential delay when
-    // no element is selected by the ref
-    // TODO Check if pooling together the delayed subs leads to better performance
-    async sub(ref, cb, trycount=5) {
+    // no element is selected by the ref. On exhaustion the returned promise
+    // REJECTS with a RefResolutionError — making the failure catchable.
+    // Third argument can be a number (legacy: trycount) or an options bag:
+    //   { trycount: N, onUnresolved: err => { … } }
+    // onUnresolved is invoked *before* the rejection, giving you a hook to
+    // log, recover, or swallow the error.
+    async sub(ref, cb, optsOrTrycount) {
       console.assert(typeof cb === "function", "Not a valid sub callback", cb)
+
+      let trycount = this.constructor.subTries ?? 5
+      let onUnresolved = null
+      if (typeof optsOrTrycount === "number") {
+        trycount = optsOrTrycount
+      } else if (optsOrTrycount && typeof optsOrTrycount === "object") {
+        if (optsOrTrycount.trycount !== undefined) trycount = optsOrTrycount.trycount
+        if (optsOrTrycount.onUnresolved) onUnresolved = optsOrTrycount.onUnresolved
+      }
+
       const parsedRef = parseRef(ref)
-      const subscription = await parsedRef.bind(this, cb, trycount)
-      if (!subscription) return null
+      let subscription
+      try {
+        subscription = await parsedRef.bind(this, cb, trycount)
+      } catch (e) {
+        if (onUnresolved) onUnresolved(e)
+        throw e
+      }
       if (subscription.attention) {
         subscription.attention.ref = ref // TODO  attach this in bind, make resub work for events and canonicalize attention/event
       }

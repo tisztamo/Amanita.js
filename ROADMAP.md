@@ -26,7 +26,7 @@ rules:
 | # | Proposal | Type | Effort | Risk | Priority |
 |---|----------|------|--------|------|----------|
 | ~~1~~ | ~~Codify topic-vs-event; close the event-path ergonomics gap~~ | ~~docs + small API~~ | ~~S–M~~ | ~~low~~ | ~~**high**~~ |
-| 2 | Make ref-resolution failure loud; tunable auto-sub retries | API + DX | S | low | **high** |
+| ~~2~~ | ~~Make ref-resolution failure loud; tunable auto-sub retries~~ | ~~API + DX~~ | ~~S~~ | ~~low~~ | ~~**high**~~ |
 | 3 | Warn on the silent auto-sub *method* footgun | DX (dev-only) | XS | low | **high** |
 | 4 | `resub` should cover event refs | bugfix | S | med | medium |
 | 5 | Smoother unsubscribe (`AbortSignal` / handle) | API | S | low | medium |
@@ -70,29 +70,30 @@ Downstream migration: ~12 `dispatchEvent` → `fire()` sites in Meditator (mecha
 boilerplate removal) and ~5 proven `pub`→event conversions that delete replay guards.
 These are discretionary app-level cleanups, not blocked on the framework change.
 
-### 2. Make ref-resolution failure loud; make auto-sub retries tunable
+### ~~2. Make ref-resolution failure loud; make auto-sub retries tunable~~
 
-**Problem.** A ref that never resolves just `console.error`s after exhausting retries
-and the handler **silently never fires** — there is no thrown error to catch. And
-auto-sub is hardwired to `trycount = 5` with no way to raise it. This is *why* both
-apps are littered with explicit `sub(…, 12)` and hand-rolled readiness loops
-(`m-mind._whenAlive`, `m-ws._whenReady`, `m-speech._bindMindEvents`, and the Studio's
-uniform `sub(…, 12)`).
+**✅ Done.**
 
-**Proposal.**
-- Let `sub`'s returned promise **reject** (or invoke an `onUnresolved` callback) when
-  resolution is exhausted, so failures are catchable rather than only logged.
-- Add a class-level default — `static subTries = 12` — so **auto-sub fields** can be
-  patient without rewriting them as explicit `sub` calls. (Today auto-sub can't tune
-  the count at all.)
-- **Stretch:** resolve refs *reactively* — bind when the target upgrades (e.g. via a
-  one-shot `customElements.whenDefined` + a mutation/upgrade hook) instead of polling
-  with exponential backoff. The custom-element **upgrade-order race is the root cause**
-  behind most of the timing hacks found in both apps; killing it would let a lot of
-  `trycount` tuning and `_whenReady` loops disappear.
+**What shipped:**
 
-**Tradeoff.** Reactive binding is more machinery than the current backoff. Start with
-the cheap wins (reject + `static subTries`) and measure whether the race still hurts.
+- **`RefResolutionError`** in `src/ref.js` — a named error subclass thrown by `resolveRef`
+  when retries are exhausted, replacing the old `console.error` + `null` return. Carries
+  the ref string on `.ref` for programmatic inspection.
+- **`sub()` rejects on resolution failure** — the returned promise now rejects with
+  `RefResolutionError` instead of resolving to `null`, making failures catchable.
+- **`onUnresolved` callback** — `sub` accepts an options bag
+  `{ trycount: N, onUnresolved: err => { … } }` where the hook fires *before* rejection,
+  giving callers a chance to log, recover, or swallow the error.
+- **`static subTries = 5`** — class-level default consumed by `sub()` so subclasses can
+  override it once (e.g. `static subTries = 12`) and all auto-sub fields inherit the
+  patience without rewriting them as explicit `sub(…, 12)` calls.
+- **Backward compatible** — passing a bare number as the third arg (`sub(ref, cb, 12)`) still works.
+- **Regression tests:** `testSubRejectsOnUnresolvedRef`, `testSubOnUnresolvedCallback`,
+  `testStaticSubTries`, `testLegacyNumericTrycount` in `test/pubsub-tests.js`.
+
+Downstream impact: eliminates the hand-rolled readiness loops (`_whenAlive`, `_whenReady`)
+and uniform `sub(…, 12)` scatter in Meditator and Studio — replace with one
+`static subTries = 12` on the base class and `try/await sub(…)` for explicit handling.
 
 ### 3. Warn on the silent auto-sub *method* footgun
 

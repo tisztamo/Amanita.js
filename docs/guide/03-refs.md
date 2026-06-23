@@ -103,7 +103,7 @@ the markup*, with a sensible structural default and an `"off"` escape hatch.
 onConnect() {
   // explicit override  ||  auto-discovered default  ||  disabled
   const src = this.attr("src") || "..m-mind/stream/chunk"
-  if (src !== "off") this.sub(src, this.onChunk, 12)
+  if (src !== "off") this.sub(src, this.onChunk)
 }
 ```
 
@@ -114,7 +114,7 @@ across components):
 ```js
 const mem = this.querySelector("m-memory[name]")
 const tailSrc = this.attr("tailSrc") || (mem ? `..m-mind/${mem.getAttribute("name")}/tail` : null)
-if (tailSrc && tailSrc !== "off") this.sub(tailSrc, t => { this.tail = t }, 12)
+if (tailSrc && tailSrc !== "off") this.sub(tailSrc, t => { this.tail = t })
 ```
 
 ## Resolving without subscribing

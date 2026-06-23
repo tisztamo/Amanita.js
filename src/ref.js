@@ -65,7 +65,6 @@ export class PropRef {
 
   async bind(sourceEl, cb, trycount=5) {
     const target = await resolveRef(this, sourceEl, trycount)
-    if (!target) return null
     const attention = target.on(this.propName, cb)
     attention.srcEl = sourceEl
     return {
@@ -105,7 +104,6 @@ export class EventRef {
 
   async bind(sourceEl, cb, trycount=5) {
     const target = await resolveRef(this, sourceEl, trycount)
-    if (!target) return null
     target.addEventListener(this.event, cb, {passive: this.passive})
     return {
       target,
@@ -116,6 +114,15 @@ export class EventRef {
 
   toString() {
     return `${this.selector.toString()}@${this.event}`
+  }
+}
+
+// Thrown when a ref cannot be resolved after exhausting all retry attempts.
+export class RefResolutionError extends Error {
+  constructor(refString) {
+    super(`Ref "${refString}" could not be resolved`)
+    this.name = "RefResolutionError"
+    this.ref = refString
   }
 }
 
@@ -142,16 +149,14 @@ export async function resolveRef(parsedRef, fromEl, trycount, _wait=0) {
     if (trycount > 0) {
       return await delay(_wait, () => resolveRef(parsedRef, fromEl, trycount - 1, _nextWait(_wait)))
     }
-    console.error(`No element selected by ref "${parsedRef.toString()}"`)
-    return null
+    throw new RefResolutionError(parsedRef.toString())
   }
   if (parsedRef instanceof PropRef) {
     if (!target.on) {
       if (trycount > 0) {
         return await delay(_wait, () => resolveRef(parsedRef, fromEl, trycount - 1, _nextWait(_wait)))
       }
-      console.error(`Ref "${parsedRef}" selects an element that is not an Amanita component:`, target)
-      return null
+      throw new RefResolutionError(parsedRef.toString())
     }
   }
   return target

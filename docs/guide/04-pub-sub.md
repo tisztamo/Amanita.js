@@ -33,7 +33,7 @@ JSON-serialized, so keep them JSON-friendly there.)
 // Explicit, in a lifecycle hook:
 onConnect() {
   this.sub("/source/celsius", this.onTemp)        // by ref
-  this.sub("/source/celsius", v => this.show(v), 12) // with a higher retry count
+  this.sub("/source/celsius", v => this.show(v), { trycount: 12 }) // with a higher retry count
 }
 onTemp = (value, previous) => { /* … */ }
 
@@ -41,11 +41,35 @@ onTemp = (value, previous) => { /* … */ }
 "/source/celsius" = value => this.show(value)
 ```
 
-`sub(ref, callback, trycount = 5)` returns a *subscription descriptor* (a Promise)
+`sub(ref, callback, options?)` returns a *subscription descriptor* (a Promise)
 you can later pass to `unsub()`. It is **async** and **self-healing**: if the ref
 doesn't resolve yet — the element isn't in the DOM, or hasn't upgraded into an
-Amanita component — it retries with exponential backoff up to `trycount` times. Real
-apps often pass `12` to comfortably outlast custom-element upgrade races.
+Amanita component — it retries with exponential backoff. The retry count defaults
+to `this.constructor.subTries` (5 on the base mixin). Override it as a `static` on
+your subclass to raise it for all calls at once:
+
+```js
+class MyAppBase extends A(HTMLElement) {
+  static subTries = 12  // all sub() and auto-sub calls get 12 retries
+}
+```
+
+You can also pass a per-call override:
+
+```js
+// Options bag — more retries + error hook:
+await this.sub("/source/celsius", this.onTemp, { trycount: 12 })
+
+// Legacy numeric shorthand still works:
+await this.sub("/source/celsius", this.onTemp, 12)
+
+// Catch resolution failure:
+try {
+  await this.sub("/maybe-absent/topic", cb)
+} catch (e) {
+  console.warn("Ref never resolved:", e.ref)
+}
+```
 
 Callbacks receive **`(newValue, oldValue)`**:
 
