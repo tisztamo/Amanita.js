@@ -153,7 +153,7 @@ export default function A(realDOM) {
         throw e
       }
       if (subscription.attention) {
-        subscription.attention.ref = ref // TODO  attach this in bind, make resub work for events and canonicalize attention/event
+        subscription.attention.ref = ref
       }
       this._a.subscriptions.push(subscription)
       return subscription
@@ -176,20 +176,26 @@ export default function A(realDOM) {
       if (subIdx === -1) {
         console.error("Subscription not found for unsub", subDesc)
       } else {
+        const sub = this._a.subscriptions[subIdx]
         this._a.subscriptions.splice(subIdx, 1)
+        if (sub.event) {
+          // Event subscription: remove native listener AND attention from target's
+          // subscribers map (so resub tracking stays consistent).
+          sub.target.removeEventListener(sub.event, sub.cb)
+          if (sub.attention && sub.target._a?.subscribers) {
+            _off(sub.target, sub.attention)
+          }
+        } else {
+          sub.target.off(sub.attention)
+        }
       }
-      if (subDesc.event) {
-        subDesc.target.removeEventListener(subDesc.event, subDesc.cb)
-        return this
-      } else {
-        subDesc.target.off(subDesc.attention)
-        return this
-      }
+      return this
     }
 
     // Unsub the given descriptor and schedule a re-subscription using the same parameters
     // Called automatically when the target element of a subscription is destroyed by a reRender()
-    // TODO does not work for event refs (the target may not be an a-component, needs to be decorated with _a)
+    // Works for both topic refs and @event refs — event targets are decorated with _a so
+    // resubAllSubscribers can discover them even when they are plain DOM elements.
     async resub(subDesc) {
       await this.unsub(subDesc)
       return this.sub(subDesc.attention.ref, subDesc.attention.cb)
@@ -237,21 +243,21 @@ export default function A(realDOM) {
 function resubAllSubscribers(nodelist) {
   for (let i = 0; i < nodelist.length; i++) {
     const node = nodelist[i]
-    if (A.isA(node)) {
-      const subscribersMap = node._a.subscribers
-      if (subscribersMap) {
-        subscribersMap.forEach(subscribers => {
-          subscribers.forEach(attention => {
-            if (attention.srcEl) {
-              attention.srcEl.resub({target: node, attention})
-              // TODO attention.srcEl = null // {node, old: attention.srcEl}
-            } else {
-              console.warn("Cannot resub", attention, node)
-            }
-          })
+    // Handle both Amanita components AND plain DOM elements decorated with _a by
+    // EventRef.bind() (which registers event attentions in target._a.subscribers).
+    const subscribersMap = node._a?.subscribers
+    if (subscribersMap) {
+      subscribersMap.forEach(subscribers => {
+        subscribers.forEach(attention => {
+          if (attention.srcEl) {
+            attention.srcEl.resub({target: node, attention})
+            // TODO attention.srcEl = null // {node, old: attention.srcEl}
+          } else {
+            console.warn("Cannot resub", attention, node)
+          }
         })
-        node._a.subscribers = null
-      }
+      })
+      node._a.subscribers = null
     }
     resubAllSubscribers(node.children)
   }

@@ -28,7 +28,7 @@ rules:
 | ~~1~~ | ~~Codify topic-vs-event; close the event-path ergonomics gap~~ | ~~docs + small API~~ | ~~S–M~~ | ~~low~~ | ~~**high**~~ |
 | ~~2~~ | ~~Make ref-resolution failure loud; tunable auto-sub retries~~ | ~~API + DX~~ | ~~S~~ | ~~low~~ | ~~**high**~~ |
 | 3 | Warn on the silent auto-sub *method* footgun | DX (dev-only) | XS | low | **high** |
-| 4 | `resub` should cover event refs | bugfix | S | med | medium |
+| ~~4~~ | ~~`resub` should cover event refs~~ | ~~bugfix~~ | ~~S~~ | ~~med~~ | ~~**medium**~~ |
 | 5 | Smoother unsubscribe (`AbortSignal` / handle) | API | S | low | medium |
 | 6 | Disambiguate constant vs ref attributes | convention/API | S | low | medium |
 | 7 | Harden `_autoSub`'s `i = 1` assumption | bugfix | XS | low | medium |
@@ -113,13 +113,34 @@ a warning is the better cost/benefit.)
 
 ## Tier 2 — ergonomics & correctness (mostly existing TODOs)
 
-### 4. `resub` should cover event refs
+### ~~4. `resub` should cover event refs~~
 
-`reRender`'s re-subscription path explicitly does **not** handle `@event` refs
-(`// TODO does not work for event refs` in `a.js`). In an Amanita-over-templating app
-(Stereotic), event bindings on re-rendered children are lost on re-render. Track the
-ref on the attention descriptor for events too (it's already stored for topic subs) and
-re-bind them in `resubAllSubscribers`.
+**✅ Done.**
+
+Previously, `reRender`'s re-subscription path did not handle `@event` refs —
+`EventRef.bind()` returned `{target, event, cb}` with no attention descriptor,
+no registration in `target._a.subscribers`, and no `ref` tracking. Event targets
+might also be plain DOM elements (not Amanita components), so `A.isA(node)` in
+`resubAllSubscribers` skipped them entirely.
+
+**What shipped:**
+
+- **`EventRef.bind()` creates an attention descriptor** in `src/ref.js` — now returns
+  `{target, event, cb, attention}` where `attention` carries `{propName, cb, ref, srcEl, event}`,
+  matching the shape produced by `PropRef.bind()`.
+- **Decorates plain DOM targets with `_a`** — if the event target lacks `_a`, binds
+  `{subscribers: null}` and initializes a `subscribers` Map, so `resubAllSubscribers`
+  discovers event attentions even on plain `<button>`, `<input>`, etc.
+- **Registers event attentions in `target._a.subscribers`** — the event's listeners
+  are tracked alongside topic subscribers under the event name key.
+- **`unsub()` cleans event attentions from target** — when unsubscribing an event sub,
+  now also calls `_off(target, attention)` to remove the attention from the target's
+  subscribers map, preventing stale entries.
+- **`resubAllSubscribers()` checks `_a?.subscribers` directly** — removed the
+  `A.isA(node)` guard so decorated plain DOM elements are discovered and their
+  attentions are re-bound via `srcEl.resub()`.
+- **Regression tests:** `testEventAttentionTracking`, `testEventResubWorks`,
+  `testEventUnsubCleansTargetSubscribers` in `test/event-resub-tests.js`.
 
 ### 5. Smoother unsubscribe
 

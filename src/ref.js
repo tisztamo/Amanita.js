@@ -104,11 +104,35 @@ export class EventRef {
 
   async bind(sourceEl, cb, trycount=12) {
     const target = await resolveRef(this, sourceEl, trycount)
+
+    // Decorate target with _a if needed (plain DOM elements are not Amanita components)
+    if (!target._a) target._a = {subscribers: null}
+    if (!target._a.subscribers) target._a.subscribers = new Map()
+
+    // Create an attention descriptor so that resub / resubAllSubscribers can track
+    // and re-bind event listeners after a reRender destroys the target element.
+    const attention = {
+      propName: this.event,
+      cb,
+      ref: null, // filled in later by sub()
+      srcEl: sourceEl,
+      event: this.event
+    }
+
+    // Register in the target's subscribers map alongside topic attentions
+    let subs = target._a.subscribers.get(this.event)
+    if (!subs) {
+      subs = []
+      target._a.subscribers.set(this.event, subs)
+    }
+    subs.push(attention)
+
     target.addEventListener(this.event, cb, {passive: this.passive})
     return {
       target,
       event: this.event,
       cb,
+      attention,
     }
   }
 
