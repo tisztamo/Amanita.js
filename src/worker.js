@@ -1,4 +1,4 @@
-import {_on, _off, _pub, _autoSub} from "./utils/pubsubutils.js"
+import {_on, _off, _pub, _autoSub, _enqueueProtoWarn} from "./utils/pubsubutils.js"
 import {getWorker, _sendMsg} from "./workerutils.js"
 import {parseRef, EventRef, PropRef} from "./ref.js"
 
@@ -18,6 +18,7 @@ export class AmanitaWorker {
   componentConnected() {
     this.onConnect()
     _autoSub(this)
+    _enqueueProtoWarn(this.constructor)
   }
 
   componentDisconnected() {

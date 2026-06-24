@@ -1,4 +1,4 @@
-import {_on, _off, _pub, _isAutoSubbed, _autoSub, _unsubAll} from "./utils/pubsubutils.js"
+import {_on, _off, _pub, _isAutoSubbed, _autoSub, _unsubAll, _enqueueProtoWarn} from "./utils/pubsubutils.js"
 import {parseRef, PropRef, resolveRef, RefResolutionError} from "./ref.js"
 
 export default function A(realDOM) {
@@ -218,6 +218,7 @@ export default function A(realDOM) {
       this.setHub(this.attr("hub"))
       this.onConnect()
       _autoSub(this)
+      _enqueueProtoWarn(this.constructor)
     }
 
     disconnectedCallback() {

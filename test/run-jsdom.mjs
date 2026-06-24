@@ -52,6 +52,8 @@ const FIXTURE = `
 </pub-sub-tests>
 
 <event-resub-tests></event-resub-tests>
+
+<proto-warn-tests></proto-warn-tests>
 `
 
 // Imported in dependency order: stdlib (a-wrap/a-var) before the suites that nest them,
@@ -65,10 +67,11 @@ const MODULES = [
   "./api-tests.js",
   "./pubsub-tests.js",
   "./event-resub-tests.js",
+  "./proto-warn-tests.js",
 ]
 
 // Suite tag -> shown in the report. Order matches the fixture.
-const SUITE_TAGS = ["attr-tests", "html-tests", "ref-tests", "api-tests", "val-tests", "pub-sub-tests", "event-resub-tests"]
+const SUITE_TAGS = ["attr-tests", "html-tests", "ref-tests", "api-tests", "val-tests", "pub-sub-tests", "event-resub-tests", "proto-warn-tests"]
 
 const SKIPPED = [
   ["worker-tests", "needs real Web Workers (jsdom provides none)"],

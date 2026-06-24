@@ -68,3 +68,43 @@ export async function _unsubAll(obj) {
     l = l - 1
   }
 }
+
+// --- Async prototype-method footgun warning (roadmap #3) ---
+// Components enqueue their constructor at connect time. The first enqueue arms a 1s
+// timer; later enqueues just push. When the timer fires we drain the batch, deduplicate
+// by constructor, walk each prototype chain and warn about ref-shaped method names.
+// NOTE: class methods are non-enumerable, so we use Object.getOwnPropertyNames().
+const _protoWarnQueue = []
+let _protoWarnTimer = null
+const _protoWarned = new WeakSet()
+
+export function _enqueueProtoWarn(Constructor) {
+  if (_protoWarned.has(Constructor)) return
+  _protoWarnQueue.push(Constructor)
+  if (!_protoWarnTimer) {
+    _protoWarnTimer = setTimeout(_flushProtoWarnQueue, 1000)
+  }
+}
+
+function _flushProtoWarnQueue() {
+  _protoWarnTimer = null
+  const batch = _protoWarnQueue.splice(0)
+  for (const Constructor of batch) {
+    if (_protoWarned.has(Constructor)) continue
+    _protoWarned.add(Constructor)
+
+    let proto = Constructor.prototype
+    while (proto && proto !== Object.prototype) {
+      for (const propName of Object.getOwnPropertyNames(proto)) {
+        if (_isAutoSubbed(propName)) {
+          console.warn(
+            `[Amanita] \`${propName}\` on ${Constructor.name} is a prototype method; ` +
+            `auto-sub only subscribes own instance fields. ` +
+            `Write it as \`"${propName}" = e => {}\` (arrow-field) to subscribe automatically.`
+          )
+        }
+      }
+      proto = Object.getPrototypeOf(proto)
+    }
+  }
+}
