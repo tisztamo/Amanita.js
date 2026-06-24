@@ -27,7 +27,7 @@ rules:
 |---|----------|------|--------|------|----------|
 | ~~1~~ | ~~Codify topic-vs-event; close the event-path ergonomics gap~~ | ~~docs + small API~~ | ~~S–M~~ | ~~low~~ | ~~**high**~~ |
 | ~~2~~ | ~~Make ref-resolution failure loud; tunable auto-sub retries~~ | ~~API + DX~~ | ~~S~~ | ~~low~~ | ~~**high**~~ |
-| 3 | Warn on the silent auto-sub *method* footgun | DX (dev-only) | XS | low | **high** |
+| ~~3~~ | ~~Warn on the silent auto-sub *method* footgun~~ | ~~DX (dev-only)~~ | ~~XS~~ | ~~low~~ | ~~**high**~~ |
 | ~~4~~ | ~~`resub` should cover event refs~~ | ~~bugfix~~ | ~~S~~ | ~~med~~ | ~~**medium**~~ |
 | 5 | Smoother unsubscribe (`AbortSignal` / handle) | API | S | low | medium |
 | 6 | Disambiguate constant vs ref attributes | convention/API | S | low | medium |
@@ -95,12 +95,20 @@ Downstream impact: eliminates the hand-rolled readiness loops (`_whenAlive`, `_w
 and uniform `sub(…, 12)` scatter in Meditator and Studio — remove explicit `trycount` overrides
 since 12 is now the default, and use `try/await sub(…)` for explicit handling.
 
-### 3. Warn on the silent auto-sub *method* footgun
+### ~~3. Warn on the silent auto-sub *method* footgun~~
+
+**✅ Done.**
 
 **Problem.** `"@click" = e => {}` is auto-subscribed; `"@click"(e) {}` silently does
 nothing, because auto-sub scans `Object.keys(this)` (own fields), and methods live on
 the prototype. It's the single most common beginner mistake — the old README itself
 fell into it.
+
+**What shipped:** At connect time, the wiring phase now scans the component's prototype
+for ref-shaped method names and emits a `console.warn`: *"`@click` looks like an
+auto-sub handler but it's a method; write it as an arrow-function field."* One extra
+loop at connect, large confusion saved. (Supporting methods was rejected — it would
+muddy the "fields are wiring" model; a warning is the better cost/benefit.)
 
 **Proposal.** In a dev build (or unconditionally — it's cheap), when wiring a
 component also scan the **prototype** for ref-shaped method names and `console.warn`:
@@ -212,12 +220,30 @@ Three concrete papercuts from the apps:
 
 ### 11. Prototype the declarative `<a-wire from to>` connector
 
-Deferred in Meditator's design notes, and the most *interesting* idea in the backlog: a
-pure-markup connector where **neither** side names the other, so every route is legible
-in one place — the logical endpoint of "wiring lives in the markup." Worth a prototype
-even just as an adapter/rename between mismatched producer/consumer vocabularies. Risk:
-it can encourage spooky-action-at-a-distance if overused; scope it to the adapter case
-first.
+**Status: deferred — waiting for a concrete adapter need.**
+
+The most *interesting* idea in the backlog: a pure-markup connector where **neither**
+side names the other, so every route is legible in one place — the logical endpoint of
+"wiring lives in the markup."
+
+**Why it's deferred.** A full audit of Meditator (minds + Studio) confirmed that the
+`*Src` attribute pattern already provides overridable, greppable, per-instance wiring
+for every current case. The subscriber-ref pattern covers the mind side; the subscriber-ref
++ command-event pattern covers the Studio. Adding `<a-wire>` now would introduce a new
+element type, new parsing logic, and new ref resolution path for the marginal gain of
+eliminating ~15 lines of mechanical `querySelector`-to-build-refs boilerplate.
+
+**Trigger conditions — we build it when one of these appears:**
+- **Spawned subminds** (`deep-structure.md` §3) — a child `m-mind` folds its result
+  upward into its parent. `<a-wire>` would declare the fold-back channel without either
+  side naming the other.
+- **Cross-vocabulary integration** — wiring a third-party component whose topic names
+  don't match the consumer's expectations. `<a-wire>` as an adapter/rename bridge.
+- **Studio plugin ecosystem** — third-party panes connected in host markup without
+  modifying either side's code.
+
+Risk: it can encourage spooky-action-at-a-distance if overused; scope it to the adapter
+case first.
 
 ---
 
